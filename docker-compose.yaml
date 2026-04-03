@@ -1,0 +1,136 @@
+services: 
+  # broker di messaggi kafka
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    ports:
+      - "9092:9092" 
+
+    environment:
+      KAFKA_KRAFT_MODE: 'true' # abilita KRaft per la gestione dei broker, metadata, ecc...
+
+      CLUSTER_ID: '1L6g7nGhU-eAKfL--X25wo' # generato random
+      KAFKA_NODE_ID: 1 # ID del broker che verrà deployato
+      
+      # il nodo che sto deployando si eseguirà con ruoli di broker di msg e controller del cluster
+      # il doppio ruolo è possibile grazie al gestore built-in KRaft
+      KAFKA_PROCESS_ROLES: broker,controller 
+
+      # lista dei controller che si occuperanno di prendere decisione sulla gestione del cluster
+      # elenco in forma "<ID_node>@kafka:<port>". Qui viene usata la 9093 configurata in PLAINTEXT (in produzione si usa tipicamente TLS).
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093 
+
+      # indico il numero di copie dei metadata del cluster Kafka
+      # impostato a 1 perché siamo in un ambiente locale a singolo nodo. In produzione (con più broker) questo valore dovrebbe essere tipicamente 3.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+      # porta 9092  per comunicazione tra producer e consumer (protocollo binario kafka)
+      # porta 9093  per comunicazione di carattere gestionale tra controller
+      # porta 29092 per comunicazione tra proxy rest e broker kafka
+      KAFKA_LISTENERS: PLAINTEXT_INTERNAL://0.0.0.0:29092,PLAINTEXT_EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+
+      # mapping tra punti di accesso e protocollo da utilizzare
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+
+      # definisco come i producer e consumer portanno comunicare con il broker kafka
+      # sarà kafka a dire esplicitamente ai client dove mandare i loro msg o le loro richieste
+      # inoltre, specifico la porta con la quale il broker kafka si metterà in comunicazione con il REST proxy
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_INTERNAL://kafka:29092,PLAINTEXT_EXTERNAL://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER # shortcut alla porta CONTROLLER definita in precedenza
+
+      # dove kafka salverà file, broker logs, metadata del controller, ecc...
+      # directory del file system del container dove kafka salverà tutti i dati, come i messaggi dei topic, i log dei broker, i metadata del controller, ecc...
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+      # impostazioni per i topic di stato delle transazioni di Kafka. Settate a 1 per ambienti a singolo nodo (necessarie per far funzionare correttamente i producer transazionali e Connect).
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+    volumes:
+      - kafka_kraft:/var/lib/kafka/data # path all'interno del container dove kafka salva tutti i dati
+
+  # proxy intermedio per lo scambio di messaggi: user -> proxy e successivamente proxy -> broker
+  rest-proxy:
+    image: confluentinc/cp-kafka-rest:latest
+    container_name: rest-proxy
+    depends_on: # specifico i container che devono essere avviati prima di quello corrente
+      - kafka
+    ports:
+      - "8082:8082" # Porta HTTP su cui il proxy risponderà
+    environment:
+      # indico al proxy dove trovare il broker Kafka
+      KAFKA_REST_BOOTSTRAP_SERVERS: 'kafka:29092' 
+      KAFKA_REST_HOST_NAME: rest-proxy
+
+  postgres-db:
+    image: postgres:13
+    container_name: postgres-db
+    ports:
+      - "5432:5432"
+    environment:
+      # variabili d'ambiente per la configurazione del database PostgreSQL
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: smart_warehouse # nome del DB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # componente che si occupa di leggere i messaggi da Kafka e scriverli su PostgreSQL
+  connect:
+    image: confluentinc/cp-kafka-connect:latest
+    container_name: connect
+    depends_on: # specifico i container che devono essere avviati prima di quello corrente
+      - kafka
+      - postgres-db 
+    ports:
+      - "8083:8083" # API per configurare i connettori
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: 'kafka:29092' # come connettersi a Kafka
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_GROUP_ID: "connect-group"
+      
+      # topics interni usati da Connect
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-status
+      CONNECT_REPLICATION_FACTOR: 1
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      
+      # convertitori: dicono a Connect come leggere i dati
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      # FONDAMENTALE: Dice a Connect di non aspettarsi uno "schema" nel JSON
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false" 
+      
+      # path per i plugin (come il driver JDBC)
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/java/kafka,/usr/share/confluent-hub-components
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    restart: always
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - postgres-db
+      
+  consumer:
+    image: consumer-logic
+    container_name: consumer
+    restart: always
+    depends_on:
+      - kafka
+      - postgres-db
+
+# definizione dei volumi per la persistenza dei dati
+volumes:
+  kafka_kraft:
+  postgres_data:
+  grafana_data:
