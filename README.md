@@ -1,5 +1,11 @@
 # Smart Warehouse - Big Data Platforms
 
+![Python](https://img.shields.io/badge/Python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
+![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-000?style=for-the-badge&logo=apachekafka&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-%23F46800.svg?style=for-the-badge&logo=grafana&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+
 This project implements a real-time, event-driven monitoring system for warehouse logistics, developed as part of the **Industry 4.0 Laboratory** course (Project 2: Big Data Platforms). The system manages stock movements, automated reordering, and security access logs using a modern data stack.
 
 ---
