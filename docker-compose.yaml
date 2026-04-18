@@ -122,6 +122,7 @@ services:
       - postgres-db
       
   consumer:
+    build: . # costruisce l'immagine a partire dal Dockerfile presente nella directory corrente
     image: consumer-logic
     container_name: consumer
     restart: always
