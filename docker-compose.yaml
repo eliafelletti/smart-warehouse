@@ -117,6 +117,12 @@ services:
       confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:10.7.4
       # Avvia normalmente Kafka Connect
       /etc/confluent/docker/run
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://localhost:8083/connectors || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s # aspetta un po' di tempo prima di iniziare a fare healthcheck, per dare il tempo a Connect di avviarsi completamente
 
   grafana:
     image: grafana/grafana-oss:latest
