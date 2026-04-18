@@ -109,6 +109,14 @@ services:
       
       # path per i plugin (come il driver JDBC)
       CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/java/kafka,/usr/share/confluent-hub-components
+    command: 
+    - bash 
+    - -c 
+    - |
+      # Installa il plugin JDBC prima di avviare il servizio
+      confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:10.7.4
+      # Avvia normalmente Kafka Connect
+      /etc/confluent/docker/run
 
   grafana:
     image: grafana/grafana-oss:latest
