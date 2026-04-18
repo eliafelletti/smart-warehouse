@@ -80,7 +80,7 @@ services:
 
   # componente che si occupa di leggere i messaggi da Kafka e scriverli su PostgreSQL
   connect:
-    image: confluentinc/cp-kafka-connect:latest
+    image: confluentinc/cp-kafka-connect:7.5.0
     container_name: connect
     depends_on: # specifico i container che devono essere avviati prima di quello corrente
       - kafka
