@@ -42,10 +42,19 @@ Access the real-time monitoring dashboard to visualize the warehouse data flow a
 
 1.  Open your browser and navigate to `http://localhost:3001`.
 2.  Log in using the default credentials: **admin / admin**.
-3.  Go to **Dashboards** -> **New** -> **Import**.
-4.  Upload the `grafana/dashboard_warehouse.json` file and select the **PostgreSQL** data source when prompted.
+3. Set up the **PostgreSQL** Data Source with the following settings:
+    * **Host**: `postgres-db:5432`
+    * **Database**: `smart_warehouse`
+    * **User**: `user`
+    * **Password**: `password`
+    * **SSL Mode**: `disable`
+    * *Click **"Save & Test"** to confirm the connection.*
+4.  Go to **Dashboards** -> **New** -> **Import**.
+5.  Upload the `grafana/dashboard_warehouse.json` file and select the **PostgreSQL** data source when prompted.
 
 *Note: The dashboard provides live visualizations for current stock levels, access attempt results, and automated supplier order status.*
+
+*Note: If the panels do not display data automatically, you may need to manually set the Data Source to "PostgreSQL" within the settings of each individual panel.*
 
 ### 🔌 4. Kafka Connect Configuration
 To activate the automated data flow from Kafka topics to the PostgreSQL database, you must configure the JDBC Sink connectors. Execute the provided automation script located in the root directory:
